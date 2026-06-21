@@ -4,7 +4,7 @@ import streamlit as st
 
 from db.database import fetch_document, fetch_documents, init_db, update_document
 from models.document import Document
-from utils.helpers import clean_text, ensure_app_directories
+from utils.helpers import clean_text, ensure_app_directories, make_duplicate_key, normalize_provider_name
 from utils.ui import inject_dashboard_css
 
 
@@ -32,7 +32,7 @@ col_home, col_add = st.columns(2)
 with col_home:
     st.page_link("app.py", label="Home dashboard")
 with col_add:
-    st.page_link("pages/Upload.py", label="Add another document")
+    st.page_link("app.py", label="Add from dashboard")
 
 document_id = st.session_state.get("edit_document_id")
 documents = fetch_documents()
@@ -65,6 +65,7 @@ with st.form("edit_document"):
         edited_category = st.selectbox("Category", categories, index=categories.index(category))
     with col_right:
         edited_hospital = st.text_input("Hospital/Lab", value=document["hospital_name"] or "")
+        edited_city = st.text_input("City/Branch", value=document["provider_city"] or "")
         edited_patient = st.text_input("Patient", value=document["patient_name"] or "")
         edited_amount = st.number_input(
             "Amount",
@@ -73,6 +74,8 @@ with st.form("edit_document"):
             step=100.0,
         )
 
+    edited_conditions = st.text_input("Illness / abnormal findings", value=document["conditions"] or "")
+    edited_test_results = st.text_area("Relevant test results", value=document["test_results"] or "", height=120)
     edited_ocr_text = st.text_area("OCR / extracted text", value=document["ocr_text"] or "", height=180)
     saved = st.form_submit_button("Save changes", use_container_width=True)
 
@@ -85,11 +88,26 @@ if saved:
             event_type=edited_category,
             event_title=clean_text(edited_title),
             hospital_name=clean_text(edited_hospital),
+            provider_city=clean_text(edited_city, ""),
+            normalized_provider=normalize_provider_name(edited_hospital),
             patient_name=clean_text(edited_patient),
             amount=edited_amount,
             thumbnail_path=document["thumbnail_path"],
             document_path=document["document_path"],
             ocr_text=edited_ocr_text,
+            conditions=edited_conditions,
+            test_results=edited_test_results,
+            document_hash=document["document_hash"] or "",
+            duplicate_key=make_duplicate_key(
+                edited_date.isoformat(),
+                edited_title,
+                edited_hospital,
+                edited_patient,
+                edited_amount,
+                document["document_hash"] or "",
+            ),
+            source_file_name=document["source_file_name"] or "",
+            page_number=document["page_number"],
             created_at=document["created_at"],
         )
     )

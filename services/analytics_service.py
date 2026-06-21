@@ -2,20 +2,6 @@ from collections import Counter, defaultdict
 from datetime import date
 
 
-CONDITION_KEYWORDS = [
-    "pid",
-    "adenomyoma",
-    "evolving fibroid",
-    "nabothian cysts",
-    "fibroid",
-    "cyst",
-    "diabetes",
-    "hypertension",
-    "thyroid",
-    "anemia",
-]
-
-
 def total_spend(events) -> float:
     return sum(float(event["amount"] or 0) for event in events)
 
@@ -41,7 +27,7 @@ def spend_by_provider(events):
     totals = defaultdict(float)
     counts = Counter()
     for event in events:
-        provider = event["hospital_name"] or "Unknown provider"
+        provider = event["normalized_provider"] or event["hospital_name"] or "Unknown provider"
         totals[provider] += float(event["amount"] or 0)
         counts[provider] += 1
     return sorted(totals.items(), key=lambda item: item[1], reverse=True), counts
@@ -50,11 +36,18 @@ def spend_by_provider(events):
 def condition_counts(events):
     counts = Counter()
     for event in events:
-        text = f"{event['event_title']} {event['ocr_text'] or ''}".lower()
-        for condition in CONDITION_KEYWORDS:
-            if condition in text:
-                counts[condition.title()] += 1
+        for condition in _split_csv(event["conditions"] or ""):
+            counts[condition] += 1
     return counts
+
+
+def events_for_condition(events, condition: str):
+    condition_lower = condition.lower()
+    return [
+        event
+        for event in events
+        if condition_lower in [item.lower() for item in _split_csv(event["conditions"] or "")]
+    ]
 
 
 def monthly_spend(events):
@@ -63,3 +56,7 @@ def monthly_spend(events):
         month = date.fromisoformat(event["event_date"]).strftime("%b %y")
         totals[month] += float(event["amount"] or 0)
     return dict(sorted(totals.items()))
+
+
+def _split_csv(value: str) -> list[str]:
+    return [item.strip().title() for item in value.split(",") if item.strip()]

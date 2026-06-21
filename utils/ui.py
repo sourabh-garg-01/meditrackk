@@ -13,7 +13,7 @@ def inject_dashboard_css() -> None:
         }
         .main .block-container {
             max-width: 980px;
-            padding-top: 1.25rem;
+            padding-top: 0.25rem;
         }
         [data-testid="stHeader"] {
             background: rgba(255, 255, 255, 0.92);
@@ -28,6 +28,16 @@ def inject_dashboard_css() -> None:
             justify-content: space-between;
             gap: 1rem;
             padding: 0.35rem 0 1.2rem;
+        }
+        .fixed-shell {
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            background: rgba(248, 251, 255, 0.96);
+            border-bottom: 1px solid #dce5ef;
+            padding: 0.8rem 0 0.7rem;
+            margin-bottom: 1rem;
+            backdrop-filter: blur(10px);
         }
         .brand {
             display: flex;

@@ -38,12 +38,14 @@ def extract_metadata_with_ai(document_path: Path, api_key: str | None = None) ->
                 "You extract structured data from Indian medical documents. "
                 "Return only valid JSON with these keys: "
                 "event_date, date_source, event_type, event_title, hospital_name, "
-                "patient_name, amount, conditions, ocr_text. "
+                "provider_city, patient_name, amount, conditions, test_results, ocr_text. "
                 "event_date must be YYYY-MM-DD when visible. "
                 "date_source must be document when found, otherwise null. "
                 "event_type must be Diagnostic, Hospital, Pharmacy, Insurance, or Other. "
                 "Prefer final payable amount over intermediate amounts. "
-                "conditions must be an array of short condition names found in the document. "
+                "conditions must include only likely illnesses, deficiencies, or abnormal findings "
+                "based on report interpretation or out-of-range test results, not merely tests performed. "
+                "test_results should summarize abnormal or clinically notable result lines only. "
                 "If a value is missing, use null."
             ),
         ],
@@ -52,6 +54,36 @@ def extract_metadata_with_ai(document_path: Path, api_key: str | None = None) ->
         ),
     )
 
+    data = json.loads(response.text or "{}")
+    data["ocr_text"] = data.get("ocr_text") or ""
+    return data
+
+
+def extract_metadata_from_image_with_ai(image_path: Path, api_key: str | None = None) -> dict:
+    api_key = api_key or get_ai_ocr_key()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=api_key)
+    model = os.getenv("AI_OCR_MODEL", DEFAULT_AI_OCR_MODEL)
+    response = client.models.generate_content(
+        model=model,
+        contents=[
+            _image_part(image_path),
+            (
+                "Extract one medical timeline event from this page. Return JSON with: "
+                "event_date, date_source, event_type, event_title, hospital_name, "
+                "provider_city, patient_name, amount, conditions, test_results, ocr_text. "
+                "If this page is only a repeated copy/continuation with no new event details, "
+                "still extract the visible details. conditions must be based on abnormal findings "
+                "or diagnosis text, not merely test names."
+            ),
+        ],
+        config=types.GenerateContentConfig(response_mime_type="application/json"),
+    )
     data = json.loads(response.text or "{}")
     data["ocr_text"] = data.get("ocr_text") or ""
     return data

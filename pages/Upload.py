@@ -1,69 +1,8 @@
-from datetime import date
-from pathlib import Path
-import re
-
 import streamlit as st
 
-from db.database import init_db, insert_document
-from models.document import Document
-from services.ai_ocr_service import extract_metadata_with_ai, get_ai_ocr_key
-from services.amount_extractor import extract_amount
-from services.classifier import classify_event, extract_hospital_name, extract_patient_name
-from services.date_extractor import extract_event_date
-from services.image_processor import save_thumbnail
-from services.ocr_service import extract_text
-from utils.helpers import (
-    SUPPORTED_EXTENSIONS,
-    THUMBNAILS_DIR,
-    UPLOADS_DIR,
-    clean_text,
-    ensure_app_directories,
-    generate_id,
-    now_iso,
-    relative_to_base,
-)
+from db.database import init_db
+from utils.helpers import ensure_app_directories
 from utils.ui import inject_dashboard_css
-
-
-def get_secret(name: str) -> str | None:
-    try:
-        return st.secrets.get(name) or get_ai_ocr_key()
-    except Exception:
-        return get_ai_ocr_key()
-
-
-def normalize_amount(value) -> float | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    cleaned = re.sub(r"[^0-9.]", "", str(value))
-    try:
-        return float(cleaned)
-    except ValueError:
-        return None
-
-
-def normalize_category(value: str | None) -> str:
-    categories = ["Diagnostic", "Hospital", "Pharmacy", "Insurance", "Other"]
-    if not value:
-        return "Other"
-    lowered = value.lower()
-    for category in categories:
-        if category.lower() in lowered:
-            return category
-    if "test" in lowered or "report" in lowered or "lab" in lowered:
-        return "Diagnostic"
-    return "Other"
-
-
-def normalize_event_date(value: str | None, fallback: str) -> str:
-    if not value:
-        return fallback
-    try:
-        return date.fromisoformat(value[:10]).isoformat()
-    except ValueError:
-        return fallback
 
 
 st.set_page_config(page_title="Upload - Meditrackk", page_icon="M", layout="wide")
@@ -77,130 +16,13 @@ st.markdown(
       <div class="brand">
         <div class="brand-icon">M</div>
         <div>
-          <div class="brand-title">Add document</div>
-          <div class="brand-subtitle">Upload a medical file and review its timeline details</div>
+          <div class="brand-title">Upload moved home</div>
+          <div class="brand-subtitle">Use the Add button on the dashboard to upload in a pop-up window.</div>
         </div>
       </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
-st.page_link("app.py", label="Back to dashboard")
 
-uploaded_file = st.file_uploader(
-    "Choose a medical document",
-    type=sorted(SUPPORTED_EXTENSIONS),
-)
-
-if uploaded_file:
-    document_id = generate_id()
-    suffix = Path(uploaded_file.name).suffix.lower()
-    saved_path = UPLOADS_DIR / f"{document_id}{suffix}"
-    saved_path.write_bytes(uploaded_file.getbuffer())
-
-    api_key = get_secret("GEMINI_API_KEY")
-    ai_data = {}
-    ocr_text = ""
-
-    if api_key:
-        with st.spinner("Reading document with AI vision..."):
-            try:
-                ai_data = extract_metadata_with_ai(saved_path, api_key=api_key)
-                ocr_text = ai_data.get("ocr_text") or ""
-                st.success("Gemini extraction complete")
-            except Exception as exc:
-                st.info(
-                    "Gemini extraction could not complete. "
-                    "You can still add this document by filling the fields manually."
-                )
-                with st.expander("Technical detail"):
-                    st.caption(str(exc))
-
-    if not ai_data:
-        with st.spinner("Trying local OCR..."):
-            try:
-                ocr_text = extract_text(saved_path)
-            except Exception as exc:
-                ocr_text = ""
-                st.info(
-                    "OCR is not available on this hosted environment yet. "
-                    "You can still add this document by filling the fields manually."
-                )
-                with st.expander("Technical detail"):
-                    st.caption(str(exc))
-
-    event_date, date_source = extract_event_date(ocr_text, date.today())
-    event_date = normalize_event_date(ai_data.get("event_date"), event_date)
-    date_source = ai_data.get("date_source") or date_source
-    event_type, event_title = classify_event(ocr_text)
-    event_type = normalize_category(ai_data.get("event_type") or event_type)
-    event_title = ai_data.get("event_title") or event_title
-    hospital_name = ai_data.get("hospital_name") or extract_hospital_name(ocr_text)
-    patient_name = ai_data.get("patient_name") or extract_patient_name(ocr_text)
-    amount = normalize_amount(ai_data.get("amount"))
-    if amount is None:
-        amount = extract_amount(ocr_text)
-
-    conditions = ai_data.get("conditions") or []
-    if conditions:
-        ocr_text = f"{ocr_text}\n\nConditions: {', '.join(str(item) for item in conditions)}".strip()
-
-    thumbnail_path = THUMBNAILS_DIR / f"{document_id}.jpg"
-    if suffix == ".pdf":
-        thumbnail_path = saved_path
-    else:
-        save_thumbnail(saved_path, thumbnail_path)
-
-    if ocr_text or ai_data:
-        st.success("OCR Complete")
-    else:
-        st.success("Document ready for manual entry")
-
-    with st.form("document_metadata"):
-        col_left, col_right = st.columns(2)
-        with col_left:
-            edited_date = st.date_input("Date", value=date.fromisoformat(event_date))
-            edited_title = st.text_input("Event Title", value=clean_text(event_title))
-            edited_category = st.selectbox(
-                "Category",
-                ["Diagnostic", "Hospital", "Pharmacy", "Insurance", "Other"],
-                index=["Diagnostic", "Hospital", "Pharmacy", "Insurance", "Other"].index(
-                    normalize_category(event_type)
-                ),
-            )
-        with col_right:
-            edited_hospital = st.text_input("Hospital/Lab", value=clean_text(hospital_name))
-            edited_patient = st.text_input("Patient", value=clean_text(patient_name))
-            edited_amount = st.number_input(
-                "Amount",
-                min_value=0.0,
-                value=float(amount or 0.0),
-                step=100.0,
-            )
-
-        st.caption(f"Date Source: {'Document' if date_source == 'document' else 'Upload Date'}")
-
-        if ocr_text:
-            with st.expander("OCR text"):
-                st.text_area("Extracted text", value=ocr_text, height=220, disabled=True)
-
-        saved = st.form_submit_button("Save to Timeline", use_container_width=True)
-
-    if saved:
-        document = Document(
-            id=document_id,
-            event_date=edited_date.isoformat(),
-            date_source=date_source,
-            event_type=edited_category,
-            event_title=clean_text(edited_title),
-            hospital_name=clean_text(edited_hospital),
-            patient_name=clean_text(edited_patient),
-            amount=edited_amount,
-            thumbnail_path=relative_to_base(thumbnail_path),
-            document_path=relative_to_base(saved_path),
-            ocr_text=ocr_text,
-            created_at=now_iso(),
-        )
-        insert_document(document)
-        st.success("Saved to timeline.")
-        st.page_link("app.py", label="Open dashboard")
+st.page_link("app.py", label="Open dashboard")
