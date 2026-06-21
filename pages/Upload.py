@@ -1,8 +1,8 @@
 import streamlit as st
 
-from db.database import init_db
-from utils.helpers import ensure_app_directories
-from utils.ui import inject_dashboard_css
+from meditrackk_data.database import init_db
+from meditrackk_utils.helpers import ensure_app_directories
+from meditrackk_utils.ui import inject_dashboard_css
 
 
 st.set_page_config(page_title="Upload - Meditrackk", page_icon="M", layout="wide")

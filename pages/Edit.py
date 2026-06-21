@@ -2,10 +2,10 @@ from datetime import date
 
 import streamlit as st
 
-from db.database import fetch_document, fetch_documents, init_db, update_document
-from models.document import Document
-from utils.helpers import clean_text, ensure_app_directories, make_duplicate_key, normalize_provider_name
-from utils.ui import inject_dashboard_css
+from meditrackk_data.database import fetch_document, fetch_documents, init_db, update_document
+from meditrackk_models.document import Document
+from meditrackk_utils.helpers import clean_text, ensure_app_directories, make_duplicate_key, normalize_provider_name
+from meditrackk_utils.ui import inject_dashboard_css
 
 
 st.set_page_config(page_title="Edit - Meditrackk", page_icon="M", layout="wide")

@@ -4,15 +4,15 @@ from tempfile import TemporaryDirectory
 
 from pdf2image import convert_from_path
 
-from db.database import find_duplicates
-from models.document import Document
-from services.ai_ocr_service import extract_metadata_from_image_with_ai
-from services.amount_extractor import extract_amount
-from services.classifier import classify_event, extract_hospital_name, extract_patient_name
-from services.date_extractor import extract_event_date
-from services.image_processor import save_thumbnail
-from services.ocr_service import extract_text
-from utils.helpers import (
+from meditrackk_data.database import find_duplicates
+from meditrackk_models.document import Document
+from meditrackk_services.ai_ocr_service import extract_metadata_from_image_with_ai
+from meditrackk_services.amount_extractor import extract_amount
+from meditrackk_services.classifier import classify_event, extract_hospital_name, extract_patient_name
+from meditrackk_services.date_extractor import extract_event_date
+from meditrackk_services.image_processor import save_thumbnail
+from meditrackk_services.ocr_service import extract_text
+from meditrackk_utils.helpers import (
     THUMBNAILS_DIR,
     clean_text,
     file_sha256,

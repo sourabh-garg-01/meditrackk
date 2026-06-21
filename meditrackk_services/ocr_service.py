@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import cv2
 from pdf2image import convert_from_path
 
-from services.image_processor import preprocess_image
+from meditrackk_services.image_processor import preprocess_image
 
 
 @lru_cache(maxsize=1)

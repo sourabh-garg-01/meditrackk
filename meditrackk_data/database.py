@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-from models.document import Document
+from meditrackk_models.document import Document
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent

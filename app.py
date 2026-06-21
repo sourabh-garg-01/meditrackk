@@ -3,8 +3,8 @@ from pathlib import Path
 
 import streamlit as st
 
-from db.database import delete_document, init_db, insert_document
-from services.analytics_service import (
+from meditrackk_data.database import delete_document, init_db, insert_document
+from meditrackk_services.analytics_service import (
     condition_counts,
     date_range,
     events_for_condition,
@@ -13,10 +13,10 @@ from services.analytics_service import (
     spend_by_provider,
     total_spend,
 )
-from services.document_processor import prepare_documents_from_upload
-from services.timeline_service import get_timeline_events, group_events_by_year_month
-from utils.helpers import BASE_DIR, SUPPORTED_EXTENSIONS, UPLOADS_DIR, ensure_app_directories, generate_id
-from utils.ui import image_to_data_uri, inject_dashboard_css
+from meditrackk_services.document_processor import prepare_documents_from_upload
+from meditrackk_services.timeline_service import get_timeline_events, group_events_by_year_month
+from meditrackk_utils.helpers import BASE_DIR, SUPPORTED_EXTENSIONS, UPLOADS_DIR, ensure_app_directories, generate_id
+from meditrackk_utils.ui import image_to_data_uri, inject_dashboard_css
 
 
 st.set_page_config(page_title="MediTrackk", page_icon="M", layout="wide")

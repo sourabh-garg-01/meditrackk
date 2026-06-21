@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
-from db.database import fetch_documents
+from meditrackk_data.database import fetch_documents
 
 
 def get_timeline_events():
