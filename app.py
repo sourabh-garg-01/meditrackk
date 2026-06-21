@@ -91,7 +91,6 @@ def render_timeline(events) -> None:
             for event in month_events:
                 event_date = date.fromisoformat(event["event_date"])
                 thumbnail_path = BASE_DIR / event["thumbnail_path"]
-                document_path = BASE_DIR / event["document_path"]
                 image_uri = image_to_data_uri(thumbnail_path)
                 thumb_html = (
                     f'<img class="thumb" src="{image_uri}" alt="Document thumbnail">'
@@ -101,7 +100,6 @@ def render_timeline(events) -> None:
                 pills = type_pill(event["event_type"]) + condition_pills(
                     f"{event['event_title']} {event['ocr_text'] or ''}"
                 )
-                document_note = "Original saved locally" if document_path.exists() else "Original unavailable"
                 st.markdown(
                     f"""
                     <div class="event-shell">
@@ -114,12 +112,15 @@ def render_timeline(events) -> None:
                           <div class="event-provider">{event['hospital_name'] or 'Unknown provider'}</div>
                           <div class="event-amount">{money(event['amount'])}</div>
                         </div>
-                        <div title="{document_note}">Edit</div>
+                        <div></div>
                       </div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
+                if st.button("Edit", key=f"edit-{event['id']}"):
+                    st.session_state["edit_document_id"] = event["id"]
+                    st.switch_page("pages/Edit.py")
 
 
 def render_overview(events) -> None:

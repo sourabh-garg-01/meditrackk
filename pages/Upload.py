@@ -1,10 +1,12 @@
 from datetime import date
 from pathlib import Path
+import re
 
 import streamlit as st
 
 from db.database import init_db, insert_document
 from models.document import Document
+from services.ai_ocr_service import extract_metadata_with_ai, get_ai_ocr_key
 from services.amount_extractor import extract_amount
 from services.classifier import classify_event, extract_hospital_name, extract_patient_name
 from services.date_extractor import extract_event_date
@@ -21,6 +23,47 @@ from utils.helpers import (
     relative_to_base,
 )
 from utils.ui import inject_dashboard_css
+
+
+def get_secret(name: str) -> str | None:
+    try:
+        return st.secrets.get(name) or get_ai_ocr_key()
+    except Exception:
+        return get_ai_ocr_key()
+
+
+def normalize_amount(value) -> float | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    cleaned = re.sub(r"[^0-9.]", "", str(value))
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def normalize_category(value: str | None) -> str:
+    categories = ["Diagnostic", "Hospital", "Pharmacy", "Insurance", "Other"]
+    if not value:
+        return "Other"
+    lowered = value.lower()
+    for category in categories:
+        if category.lower() in lowered:
+            return category
+    if "test" in lowered or "report" in lowered or "lab" in lowered:
+        return "Diagnostic"
+    return "Other"
+
+
+def normalize_event_date(value: str | None, fallback: str) -> str:
+    if not value:
+        return fallback
+    try:
+        return date.fromisoformat(value[:10]).isoformat()
+    except ValueError:
+        return fallback
 
 
 st.set_page_config(page_title="Upload - Meditrackk", page_icon="M", layout="wide")
@@ -55,23 +98,52 @@ if uploaded_file:
     saved_path = UPLOADS_DIR / f"{document_id}{suffix}"
     saved_path.write_bytes(uploaded_file.getbuffer())
 
-    with st.spinner("Running OCR locally..."):
-        try:
-            ocr_text = extract_text(saved_path)
-        except Exception as exc:
-            ocr_text = ""
-            st.info(
-                "OCR is not available on this hosted environment yet. "
-                "You can still add this document by filling the fields manually."
-            )
-            with st.expander("Technical detail"):
-                st.caption(str(exc))
+    api_key = get_secret("OPENAI_API_KEY")
+    ai_data = {}
+    ocr_text = ""
+
+    if api_key:
+        with st.spinner("Reading document with AI vision..."):
+            try:
+                ai_data = extract_metadata_with_ai(saved_path, api_key=api_key)
+                ocr_text = ai_data.get("ocr_text") or ""
+                st.success("AI extraction complete")
+            except Exception as exc:
+                st.info(
+                    "AI extraction could not complete. "
+                    "You can still add this document by filling the fields manually."
+                )
+                with st.expander("Technical detail"):
+                    st.caption(str(exc))
+
+    if not ai_data:
+        with st.spinner("Trying local OCR..."):
+            try:
+                ocr_text = extract_text(saved_path)
+            except Exception as exc:
+                ocr_text = ""
+                st.info(
+                    "OCR is not available on this hosted environment yet. "
+                    "You can still add this document by filling the fields manually."
+                )
+                with st.expander("Technical detail"):
+                    st.caption(str(exc))
 
     event_date, date_source = extract_event_date(ocr_text, date.today())
+    event_date = normalize_event_date(ai_data.get("event_date"), event_date)
+    date_source = ai_data.get("date_source") or date_source
     event_type, event_title = classify_event(ocr_text)
-    hospital_name = extract_hospital_name(ocr_text)
-    patient_name = extract_patient_name(ocr_text)
-    amount = extract_amount(ocr_text)
+    event_type = normalize_category(ai_data.get("event_type") or event_type)
+    event_title = ai_data.get("event_title") or event_title
+    hospital_name = ai_data.get("hospital_name") or extract_hospital_name(ocr_text)
+    patient_name = ai_data.get("patient_name") or extract_patient_name(ocr_text)
+    amount = normalize_amount(ai_data.get("amount"))
+    if amount is None:
+        amount = extract_amount(ocr_text)
+
+    conditions = ai_data.get("conditions") or []
+    if conditions:
+        ocr_text = f"{ocr_text}\n\nConditions: {', '.join(str(item) for item in conditions)}".strip()
 
     thumbnail_path = THUMBNAILS_DIR / f"{document_id}.jpg"
     if suffix == ".pdf":
@@ -79,7 +151,7 @@ if uploaded_file:
     else:
         save_thumbnail(saved_path, thumbnail_path)
 
-    if ocr_text:
+    if ocr_text or ai_data:
         st.success("OCR Complete")
     else:
         st.success("Document ready for manual entry")
@@ -92,7 +164,9 @@ if uploaded_file:
             edited_category = st.selectbox(
                 "Category",
                 ["Diagnostic", "Hospital", "Pharmacy", "Insurance", "Other"],
-                index=["Diagnostic", "Hospital", "Pharmacy", "Insurance", "Other"].index(event_type),
+                index=["Diagnostic", "Hospital", "Pharmacy", "Insurance", "Other"].index(
+                    normalize_category(event_type)
+                ),
             )
         with col_right:
             edited_hospital = st.text_input("Hospital/Lab", value=clean_text(hospital_name))

@@ -1,6 +1,5 @@
 import sqlite3
 from pathlib import Path
-from typing import Iterable
 
 from models.document import Document
 
@@ -86,3 +85,52 @@ def fetch_documents() -> list[sqlite3.Row]:
             """
         )
         return list(cursor.fetchall())
+
+
+def fetch_document(document_id: str) -> sqlite3.Row | None:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            SELECT *
+            FROM documents
+            WHERE id = ?;
+            """,
+            (document_id,),
+        )
+        return cursor.fetchone()
+
+
+def update_document(document: Document) -> None:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE documents
+            SET
+                event_date = ?,
+                date_source = ?,
+                event_type = ?,
+                event_title = ?,
+                hospital_name = ?,
+                patient_name = ?,
+                amount = ?,
+                thumbnail_path = ?,
+                document_path = ?,
+                ocr_text = ?,
+                created_at = ?
+            WHERE id = ?;
+            """,
+            (
+                document.event_date,
+                document.date_source,
+                document.event_type,
+                document.event_title,
+                document.hospital_name,
+                document.patient_name,
+                document.amount,
+                document.thumbnail_path,
+                document.document_path,
+                document.ocr_text,
+                document.created_at,
+                document.id,
+            ),
+        )
