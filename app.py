@@ -115,6 +115,16 @@ def upload_dialog() -> None:
             st.write(f"Amount: {money(document.amount)}")
             if document.conditions:
                 st.write(f"Illness/findings: {document.conditions}")
+            if item.get("used_ai"):
+                st.caption("Extracted with Gemini.")
+            else:
+                st.caption("Gemini extraction did not run successfully; fallback/manual fields were used.")
+                if item.get("ai_error"):
+                    with st.expander("Gemini extraction error"):
+                        st.code(item["ai_error"])
+                if item.get("local_ocr_error"):
+                    with st.expander("Local OCR fallback error"):
+                        st.code(item["local_ocr_error"])
 
             allow_duplicate = True
             if duplicates:

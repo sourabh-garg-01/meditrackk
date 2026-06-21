@@ -7,7 +7,7 @@ from pdf2image import convert_from_path
 from PIL import Image
 
 
-DEFAULT_AI_OCR_MODEL = "gemini-3.5-flash"
+DEFAULT_AI_OCR_MODEL = "gemini-2.5-flash"
 
 
 def get_ai_ocr_key() -> str | None:
@@ -77,9 +77,14 @@ def extract_metadata_from_image_with_ai(image_path: Path, api_key: str | None = 
                 "Extract one medical timeline event from this page. Return JSON with: "
                 "event_date, date_source, event_type, event_title, hospital_name, "
                 "provider_city, patient_name, amount, conditions, test_results, ocr_text. "
-                "If this page is only a repeated copy/continuation with no new event details, "
-                "still extract the visible details. conditions must be based on abnormal findings "
-                "or diagnosis text, not merely test names."
+                "Read all visible text carefully, including small headers and bill tables. "
+                "For bills and receipts, find the bill date, provider name, patient name, final "
+                "payable amount, and a concise title from the service/test names. "
+                "For reports, find abnormal findings, diagnoses, impressions, and out-of-range "
+                "results. If this page is only a repeated copy/continuation with no new event "
+                "details, still extract the visible details. conditions must be based on abnormal "
+                "findings or diagnosis text, not merely test names. Use null only when the value "
+                "is genuinely not visible."
             ),
         ],
         config=types.GenerateContentConfig(response_mime_type="application/json"),

@@ -71,17 +71,23 @@ def _prepare_one_document(
 
     ai_data = {}
     ocr_text = ""
+    ai_error = ""
+    local_ocr_error = ""
     if api_key:
         try:
             ai_data = extract_metadata_from_image_with_ai(image_path, api_key=api_key)
             ocr_text = ai_data.get("ocr_text") or ""
-        except Exception:
+        except Exception as exc:
+            ai_error = str(exc)
             ai_data = {}
+    else:
+        ai_error = "GEMINI_API_KEY is not configured in Streamlit Secrets."
 
     if not ai_data:
         try:
             ocr_text = extract_text(image_path)
-        except Exception:
+        except Exception as exc:
+            local_ocr_error = str(exc)
             ocr_text = ""
 
     event_date, date_source = extract_event_date(ocr_text, date.today())
@@ -125,6 +131,9 @@ def _prepare_one_document(
     return {
         "document": document,
         "duplicates": find_duplicates(duplicate_key, document_hash),
+        "ai_error": ai_error,
+        "local_ocr_error": local_ocr_error,
+        "used_ai": bool(ai_data),
     }
 
 
