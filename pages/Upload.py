@@ -20,13 +20,29 @@ from utils.helpers import (
     now_iso,
     relative_to_base,
 )
+from utils.ui import inject_dashboard_css
 
 
 st.set_page_config(page_title="Upload - Meditrackk", page_icon="M", layout="wide")
 ensure_app_directories()
 init_db()
+inject_dashboard_css()
 
-st.title("Upload Document")
+st.markdown(
+    """
+    <div class="hero">
+      <div class="brand">
+        <div class="brand-icon">M</div>
+        <div>
+          <div class="brand-title">Add document</div>
+          <div class="brand-subtitle">Upload a medical file and review its timeline details</div>
+        </div>
+      </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+st.page_link("app.py", label="Back to dashboard")
 
 uploaded_file = st.file_uploader(
     "Choose a medical document",
@@ -44,7 +60,12 @@ if uploaded_file:
             ocr_text = extract_text(saved_path)
         except Exception as exc:
             ocr_text = ""
-            st.warning(f"OCR could not complete: {exc}")
+            st.info(
+                "OCR is not available on this hosted environment yet. "
+                "You can still add this document by filling the fields manually."
+            )
+            with st.expander("Technical detail"):
+                st.caption(str(exc))
 
     event_date, date_source = extract_event_date(ocr_text, date.today())
     event_type, event_title = classify_event(ocr_text)
@@ -58,7 +79,10 @@ if uploaded_file:
     else:
         save_thumbnail(saved_path, thumbnail_path)
 
-    st.success("OCR Complete")
+    if ocr_text:
+        st.success("OCR Complete")
+    else:
+        st.success("Document ready for manual entry")
 
     with st.form("document_metadata"):
         col_left, col_right = st.columns(2)
@@ -105,4 +129,4 @@ if uploaded_file:
         )
         insert_document(document)
         st.success("Saved to timeline.")
-        st.page_link("pages/Timeline.py", label="Open Timeline")
+        st.page_link("app.py", label="Open dashboard")
