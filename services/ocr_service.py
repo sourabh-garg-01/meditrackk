@@ -10,7 +10,14 @@ from services.image_processor import preprocess_image
 
 @lru_cache(maxsize=1)
 def get_ocr_engine():
-    from paddleocr import PaddleOCR
+    try:
+        from paddleocr import PaddleOCR
+    except ImportError as exc:
+        raise RuntimeError(
+            "PaddleOCR is not installed in this environment. "
+            "Install optional OCR dependencies with: "
+            "pip install -r requirements-ocr.txt"
+        ) from exc
 
     return PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
 

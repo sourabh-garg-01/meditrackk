@@ -44,6 +44,20 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+## OCR Dependencies
+
+The hosted Streamlit app uses a lightweight dependency set so it can deploy on
+free infrastructure. For full local OCR with PaddleOCR, install the optional OCR
+dependencies after the base requirements:
+
+```bash
+pip install -r requirements-ocr.txt
+```
+
+PaddleOCR currently has stricter Python wheel support than Streamlit Cloud's
+default Python version, so this repo includes `runtime.txt` to request Python
+3.11 for hosted deployments.
+
 ## Project Structure
 
 ```text
