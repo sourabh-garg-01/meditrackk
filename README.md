@@ -58,15 +58,15 @@ PaddleOCR currently has stricter Python wheel support than Streamlit Cloud's
 default Python version, so this repo includes `runtime.txt` to request Python
 3.11 for hosted deployments.
 
-## AI OCR On Streamlit Cloud
+## Gemini OCR On Streamlit Cloud
 
 For better extraction on hosted deployments, add this secret in Streamlit Cloud:
 
 ```toml
-OPENAI_API_KEY = "your-api-key"
+GEMINI_API_KEY = "your-api-key"
 ```
 
-When the key is present, uploads use AI vision extraction for date, title,
+When the key is present, uploads use Gemini vision extraction for date, title,
 provider, patient, amount, category, conditions, and raw text. Without the key,
 the app still lets users save documents manually.
 

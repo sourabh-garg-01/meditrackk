@@ -98,7 +98,7 @@ if uploaded_file:
     saved_path = UPLOADS_DIR / f"{document_id}{suffix}"
     saved_path.write_bytes(uploaded_file.getbuffer())
 
-    api_key = get_secret("OPENAI_API_KEY")
+    api_key = get_secret("GEMINI_API_KEY")
     ai_data = {}
     ocr_text = ""
 
@@ -107,10 +107,10 @@ if uploaded_file:
             try:
                 ai_data = extract_metadata_with_ai(saved_path, api_key=api_key)
                 ocr_text = ai_data.get("ocr_text") or ""
-                st.success("AI extraction complete")
+                st.success("Gemini extraction complete")
             except Exception as exc:
                 st.info(
-                    "AI extraction could not complete. "
+                    "Gemini extraction could not complete. "
                     "You can still add this document by filling the fields manually."
                 )
                 with st.expander("Technical detail"):
